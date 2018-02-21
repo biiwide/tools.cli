@@ -9,7 +9,7 @@
   <groupId>biiwide</groupId>
   <artifactId>tools.cli</artifactId>
   <packaging>jar</packaging>
-  <version>0.3.9-SNAPSHOT</version>
+  <version>0.3.9</version>
   <name>tools.cli</name>
   <description>Command line arguments library.</description>
   <url>https://github.com/biiwide/tools.cli</url>
@@ -23,7 +23,7 @@
     <url>https://github.com/biiwide/tools.cli</url>
     <connection>scm:git:git://github.com/biiwide/tools.cli.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/biiwide/tools.cli.git</developerConnection>
-    <tag>1d5197ded05931b3a49fd8dc7d8632aa28d11e30</tag>
+    <tag>92f0e50623b46ab2cb18c34e4083e63071af9d83</tag>
   </scm>
   <build>
     <sourceDirectory>src/main/clojure</sourceDirectory>

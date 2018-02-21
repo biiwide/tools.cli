@@ -24,7 +24,9 @@
 (defn- strings-map
   [m]
   (reduce (fn [m [k v]]
-            (assoc m (name k) (str v)))
+            (if (some? v)
+              (assoc m (name k) (str v))
+              m))
           {} m))
 
 (defn with-env*

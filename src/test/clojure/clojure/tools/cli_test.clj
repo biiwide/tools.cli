@@ -4,7 +4,7 @@
                [clojure.string :refer [join]]
                cemerick.cljs.test)}
   (:use [clojure.tools.cli :as cli
-         :only [get-default-options parse-opts summarize with-env]]
+         :only [get-default-options parse-opts summarize env with-env]]
         [clojure.string :only [join]]
         [clojure.test :only [deftest is testing]])
   #_(:cljs (:require-macros [cemerick.cljs.test :refer [deftest is testing]])))
@@ -265,6 +265,47 @@
                                                     (join \| (map :long-opt specs))
                                                     "] arg1 arg2"))))
            "Usage: myprog [--alpha|--beta] arg1 arg2"))))
+
+
+(deftest test-env
+  (is (string? (env "PATH")))
+  (is (= (env "PATH") (env "PATH" :missing)))
+  (is (nil? (env "SHOULD_BE_MISSING")))
+  (is (= :missing (env "SHOULD_ALSO_BE_MISSING" :missing)))
+
+  (is (map? (env)))
+  (is (every? string? (keys (env))))
+  (is (every? string? (vals (env))))
+  )
+
+
+(deftest test-with-env
+  (with-env [PATH "fizz:buzz"]
+    (is (= "fizz:buzz" (env "PATH"))))
+
+  (with-env [PATH "foo:bar"
+             IGNORE "abcd"]
+    (is (= "foo:bar" (env "PATH"))))
+
+  (with-env []
+    (is (nil? (env "PATH"))))
+
+  (with-env [PATH nil]
+    (is (nil? (env "PATH"))))
+
+  (with-env [SOMETHING 1234]
+    (= "1234" (env "SOMETHING")))
+
+  (with-env [MISSING "something"
+             SOMETHING "else"]
+    (is (= "something" (env "MISSING")))
+    (is (= "else"      (env "SOMETHING"))))
+
+  (with-env [MISSING 1234]
+    (is (= "1234" (env "MISSING"))))
+  )
+
+
 
 (comment
   ;; Chas Emerick's PhantomJS test runner

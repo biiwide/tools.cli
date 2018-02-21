@@ -3,7 +3,8 @@
     '(:require [cljs.tools.cli :as cli :refer [get-default-options parse-opts summarize]]
                [clojure.string :refer [join]]
                cemerick.cljs.test)}
-  (:use [clojure.tools.cli :as cli :only [get-default-options parse-opts summarize]]
+  (:use [clojure.tools.cli :as cli
+         :only [get-default-options parse-opts summarize with-env]]
         [clojure.string :only [join]]
         [clojure.test :only [deftest is testing]])
   #_(:cljs (:require-macros [cemerick.cljs.test :refer [deftest is testing]])))
@@ -139,14 +140,24 @@
                   [["-a" "--alpha"]
                    ["-b" "--beta" :default false]
                    ["-g" "--gamma=ARG"]
-                   ["-d" "--delta=ARG" :default "DELTA"]])]
+                   ["-d" "--delta=ARG" :default "DELTA"]
+                   ["-e" "--epsilon=ARG" :env "EPSILON"]
+                   ["-s" "--sigma=ARG" :env "SIGMA" :default "SIGMA"]
+                   ])]
       (is (= (parse-option-tokens specs [])
-             [{:beta false :delta "DELTA"} []]))
+             [{:beta false :delta "DELTA" :sigma "SIGMA"} []]))
       (is (= (parse-option-tokens specs [[:short-opt "-a"]
                                          [:short-opt "-b"]
                                          [:short-opt "-g" "GAMMA"]
                                          [:short-opt "-d" "delta"]])
-             [{:alpha true :beta true :gamma "GAMMA" :delta "delta"} []]))))
+             [{:alpha true :beta true :gamma "GAMMA" :delta "delta" :sigma "SIGMA"} []]))
+      (with-env [EPSILON "abc"]
+        (is (= (parse-option-tokens specs [])
+               [{:beta false :delta "DELTA" :epsilon "abc" :sigma "SIGMA"} []])))
+      (with-env [SIGMA "xyz"]
+        (is (= (parse-option-tokens specs [])
+               [{:beta false :delta "DELTA" :sigma "xyz"} []])))
+    ))
   (testing "associates :id and value with :assoc-fn"
     (let [specs (compile-option-specs
                   [["-a" "--alpha"

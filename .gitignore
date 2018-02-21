@@ -3,3 +3,7 @@ target
 /src/test/clojure/cljs
 /.lein-repl-history
 /.nrepl-port
+/bin/
+/.classpath
+/.project
+/.settings/

@@ -4,6 +4,43 @@
   (:require [clojure.pprint :as pp]
             [clojure.string :as s]))
 
+
+
+;; Because Java doesn't provide a mechanism for
+;; manipulating the OS environment, just capture
+;; the whole thing in a dynamic var.  Dynamic scope
+;; can then be used for controlling the environment
+;; in testing scenarios.
+
+(def ^:dynamic *env*
+  (into {} (System/getenv)))
+
+(defn env
+  "Get an environment variable."
+  ([] *env*)
+  ([var-name] (env var-name nil))
+  ([var-name missing] (get *env* (name var-name) missing)))
+
+(defn- strings-map
+  [m]
+  (reduce (fn [m [k v]]
+            (assoc m (name k) (str v)))
+          {} m))
+
+(defn with-env*
+  "Execute a function with a dynamic environment."
+  [env-map f]
+  (binding [*env* (strings-map env-map)]
+    (f)))
+
+(defmacro with-env
+  "Evaluate a form with a dynamic environment."
+  [env-bindings & body]
+  `(with-env* '~(apply hash-map env-bindings)
+              (fn [] ~@body)))
+
+
+
 (defn- tokenize-args
   "Reduce arguments sequence into [opt-type opt ?optarg?] vectors and a vector
   of remaining arguments. Returns as [option-tokens remaining-args].
@@ -212,7 +249,7 @@
 
 (def ^{:private true} spec-keys
   [:id :short-opt :long-opt :required :desc :default :default-desc :parse-fn
-   :assoc-fn :validate-fn :validate-msg :missing])
+   :assoc-fn :validate-fn :validate-msg :missing :env])
 
 (defn- select-spec-keys
   "Select only known spec entries from map and warn the user about unknown
@@ -268,6 +305,7 @@
   {:id           Keyword  ; :server
    :short-opt    String   ; \"-s\"
    :long-opt     String   ; \"--server\"
+   :env          String   ; \"SERVER\"
    :required     String   ; \"HOSTNAME\"
    :desc         String   ; \"Remote server\"
    :default      Object   ; #<Inet4Address example.com/93.184.216.119>
@@ -368,6 +406,65 @@
       [::error (missing-required-error opt required)]
       (parse-value (if required optarg true) spec opt optarg))))
 
+
+
+(definline ^:private fresh-parse-state
+  [init]
+  `[~init #{} []])
+
+(definline ^:private parse-complete
+  [p-state no-defaults?]
+  `(let [[options# ids# errors#] ~p-state]
+     (if ~no-defaults?
+       [(select-keys options# ids#) errors#]
+       [options# errors#])))
+
+(definline ^:private add-parse-error
+  [p-state err-message]
+  `(let [[opts# ids# errors#] ~p-state]
+     [opts# ids# (conj errors# ~err-message)]))
+
+(definline ^:private assoc-parse-value
+  [p-state spec parsed-value]
+  `(let [[value# err-msg#] ~parsed-value]
+     (if (= ::error value#)
+       (add-parse-error ~p-state err-msg#)
+       (let [[opts# ids# errors#] ~p-state]
+         [((:assoc-fn ~spec assoc) opts# (:id ~spec) value#)
+          (conj ids# (:id ~spec))
+          errors#]))))
+
+(definline ^:private get-parsed-option
+  [parse-state opt-id missing]
+  `(get (first ~parse-state) ~opt-id ~missing))
+
+(definline ^:private already-parsed?
+  [parse-state opt-id]
+  `(contains? (second ~parse-state) ~opt-id))
+
+  
+(defn- parse-from-env
+  [parse-state spec]
+  (if (and (contains? spec :env)
+           (not (already-parsed? parse-state (:id spec))))
+    (let [env-opt (name (:env spec))
+          id      (:id spec)]
+      (if-some [env-val (env env-opt)]
+        (assoc-parse-value parse-state spec
+                           (parse-optarg spec env-opt env-val))
+        parse-state))
+    parse-state))
+
+(defn- token-parser
+  [specs strict?]
+  (fn [p-state [opt-type opt optarg :as token]]
+    (if-let [spec (find-spec specs opt-type opt)]
+      (if (and strict? (or (find-spec specs :short-opt optarg)
+                           (find-spec specs :long-opt optarg)))
+        (add-parse-error p-state (missing-required-error opt (:required spec)))
+        (assoc-parse-value p-state spec (parse-optarg spec opt optarg)))
+      (add-parse-error p-state (str "Unknown option: " (pr-str opt))))))
+
 (defn- parse-option-tokens
   "Reduce sequence of [opt-type opt ?optarg?] tokens into a map of
   {option-id value} merged over the default values in the option
@@ -385,33 +482,26 @@
 
   Returns [option-map error-messages-vector]."
   [specs tokens & options]
-  (let [{:keys [no-defaults strict]} (apply hash-map options)
-        defaults (default-option-map specs)
-        requireds (missing-errors specs)]
-    (-> (reduce
-          (fn [[m ids errors] [opt-type opt optarg]]
-            (if-let [spec (find-spec specs opt-type opt)]
-              (let [[value error] (parse-optarg spec opt optarg)
-                    id (:id spec)]
-                (if-not (= value ::error)
-                  (if-let [matched-spec (and strict
-                                             (or (find-spec specs :short-opt optarg)
-                                                 (find-spec specs :long-opt optarg)))]
-                    [m ids (conj errors (missing-required-error opt (:required spec)))]
-                    [((:assoc-fn spec assoc) m id value) (conj ids id) errors])
-                  [m ids (conj errors error)]))
-              [m ids (conj errors (str "Unknown option: " (pr-str opt)))]))
-          [defaults [] []] tokens)
-        (#(reduce
-           (fn [[m ids errors] [id error]]
-             (if (contains? m id)
-               [m ids errors]
-               [m ids (conj errors error)]))
-           % requireds))
-        (#(let [[m ids errors] %]
-            (if no-defaults
-              [(select-keys m ids) errors]
-              [m errors]))))))
+  (let [{:keys [no-defaults strict]} (apply hash-map options)]
+    (as-> (fresh-parse-state (default-option-map specs)) PARSE-STATE
+
+          ;; Parse tokens 
+          (reduce (token-parser specs strict) PARSE-STATE tokens)
+
+          ;; Parse from environment variables
+          (reduce parse-from-env PARSE-STATE specs)
+
+          ;; Detecting missing options
+          (reduce (fn [p-state [id error]]
+                    (if (= ::missing (get-parsed-option p-state id ::missing))
+                      (add-parse-error p-state error)
+                      p-state))
+                  PARSE-STATE (missing-errors specs))
+
+          ;; Cleanup parse-state
+          (parse-complete PARSE-STATE no-defaults)
+          )))
+
 
 (defn ^{:added "0.3.0"} make-summary-part
   "Given a single compiled option spec, turn it into a formatted string,
@@ -506,6 +596,8 @@
 
     :long-opt     The long format for this option, normally set by the second
                   positional string parameter; e.g. \"--port\". Must be unique.
+
+    :env          An environment variable to check.
 
     :required     A description of the required argument for this option if
                   one is required; normally set in the second positional

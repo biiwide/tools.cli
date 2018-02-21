@@ -1,12 +1,11 @@
-(defproject biiwide/tools.cli "0.3.9-SNAPSHOT"
+(defproject biiwide/tools.cli "0.3.9"
   :description "Command line arguments library."
   :parent [org.clojure/pom.contrib "0.1.2"]
-  :url "https://github.com/clojure/tools.cli"
+  :url "https://github.com/biiwide/tools.cli"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :source-paths ["src/main/clojure"]
   :test-paths ["src/test/clojure"]
-  :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"}
   :dependencies [[org.clojure/clojure "1.6.0"]]
   :profiles {:1.2 {:dependencies [[org.clojure/clojure "1.2.1"]]}
              :1.3 {:dependencies [[org.clojure/clojure "1.3.0"]]}
@@ -18,10 +17,10 @@
              :1.9 {:dependencies [[org.clojure/clojure "1.9.0-master-SNAPSHOT"]]}
 
              ;; Local CLJS development; not in pom.xml
-             :dev {:dependencies [[org.clojure/clojurescript "0.0-2080"]]
+             :dev {:dependencies [[org.clojure/clojurescript "0.0-2080" :scope "test"]]
                    :plugins [[lein-cljsbuild "1.0.0"]
                              [com.birdseye-sw/lein-dalap "0.1.1"]
-                             [com.cemerick/clojurescript.test "0.2.1"]]
+                             [com.cemerick/clojurescript.test "0.2.1" :scope "test"]]
                    :hooks [leiningen.dalap]
                    :cljsbuild {:builds [{:source-paths ["src/main/clojure/cljs"
                                                         "src/test/clojure/cljs"]

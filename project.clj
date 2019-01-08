@@ -1,4 +1,4 @@
-(defproject biiwide/tools.cli "0.3.10"
+(defproject biiwide/tools.cli "0.3.11-SNAPSHOT"
 
   :description "Command line arguments library."
   :parent [org.clojure/pom.contrib "0.1.2"]

@@ -1,9 +1,9 @@
-(ns ^{:cljs 'cljs.tools.cli-test} clojure.tools.cli-test
+(ns ^{:cljs 'cljs.tools.cli-test} biiwide.tools.cli-test
   ^{:cljs
     '(:require [cljs.tools.cli :as cli :refer [get-default-options parse-opts summarize]]
                [clojure.string :refer [join]]
                cemerick.cljs.test)}
-  (:use [clojure.tools.cli :as cli
+  (:use [biiwide.tools.cli :as cli
          :only [get-default-options parse-opts summarize env with-env]]
         [clojure.string :only [join]]
         [clojure.test :only [deftest is testing]])

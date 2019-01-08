@@ -1,7 +1,7 @@
-(ns clojure.tools.cli-legacy-test
+(ns biiwide.tools.cli-legacy-test
   (:use [clojure.string :only [split]]
         [clojure.test :only [deftest is testing]]
-        [clojure.tools.cli :as cli :only [cli]]))
+        [biiwide.tools.cli :as cli :only [cli]]))
 
 (testing "syntax"
   (deftest should-handle-simple-strings

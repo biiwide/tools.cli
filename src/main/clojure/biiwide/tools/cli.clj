@@ -1,6 +1,6 @@
 (ns ^{:author "Gareth Jones, Sung Pae"
       :doc "Tools for working with command line arguments."}
-  clojure.tools.cli
+  biiwide.tools.cli
   (:require [clojure.pprint :as pp]
             [clojure.string :as s]))
 
